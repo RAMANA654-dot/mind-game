@@ -51,6 +51,36 @@
   <h2>Leaderboard</h2>
   <ul id="leaderboard"></ul>
 
+  <!-- 🔥 Firebase Script -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBqGcB9AOcnY7B2iR-U0ZvH_JM0xTtniOc",
+      authDomain: "backend-48141.firebaseapp.com",
+      projectId: "backend-48141",
+      storageBucket: "backend-48141.firebasestorage.app",
+      messagingSenderId: "245004270827",
+      appId: "1:245004270827:web:34fdb4776c2cdc5c2dd2ae"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 🌍 Make global
+    window.db = db;
+    window.collection = collection;
+    window.addDoc = addDoc;
+    window.getDocs = getDocs;
+
+    // Load leaderboard on start
+    window.onload = () => {
+      loadLeaderboard();
+    };
+  </script>
+
+  <!-- 🎮 Game Script -->
   <script>
     const emojis = ["🍎","🍌","🍇","🍒","🍎","🍌","🍇","🍒"];
     let shuffled = emojis.sort(() => 0.5 - Math.random());
@@ -96,19 +126,36 @@
       board.appendChild(card);
     });
 
-    // Restart function
     function restartGame() {
       location.reload();
     }
 
-    // Simple local leaderboard
-    let scores = [];
-
-    function submitScore() {
+    // 🔥 SAVE SCORE TO FIREBASE
+    async function submitScore() {
       const name = document.getElementById("playerName").value;
+
       if (!name) return alert("Enter your name!");
 
-      scores.push({ name, moves });
+      await addDoc(collection(db, "leaderboard"), {
+        name: name,
+        moves: moves,
+        time: Date.now()
+      });
+
+      alert("Score saved!");
+      loadLeaderboard();
+    }
+
+    // 📊 LOAD LEADERBOARD FROM FIREBASE
+    async function loadLeaderboard() {
+      const snapshot = await getDocs(collection(db, "leaderboard"));
+
+      let scores = [];
+
+      snapshot.forEach(doc => {
+        scores.push(doc.data());
+      });
+
       scores.sort((a, b) => a.moves - b.moves);
 
       const list = document.getElementById("leaderboard");
