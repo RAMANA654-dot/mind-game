@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Memory Game</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      text-align: center;
+    }
+
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(4, 80px);
+      gap: 10px;
+      justify-content: center;
+      margin: 20px;
+    }
+
+    .card {
+      width: 80px;
+      height: 80px;
+      background: #333;
+      color: white;
+      font-size: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 10px;
+    }
+
+    input, button {
+      padding: 10px;
+      margin: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>🧠 Memory Game</h1>
+
+  <div id="game-board"></div>
+
+  <input id="playerName" placeholder="Your name" />
+  <button onclick="submitScore()">Submit Score</button>
+  <button onclick="restartGame()">🔁 Restart</button>
+
+  <h2>Leaderboard</h2>
+  <ul id="leaderboard"></ul>
+
+  <script>
+    const emojis = ["🍎","🍌","🍇","🍒","🍎","🍌","🍇","🍒"];
+    let shuffled = emojis.sort(() => 0.5 - Math.random());
+
+    let first = null;
+    let second = null;
+    let lock = false;
+    let moves = 0;
+
+    const board = document.getElementById("game-board");
+
+    shuffled.forEach((emoji) => {
+      const card = document.createElement("div");
+      card.classList.add("card");
+      card.dataset.value = emoji;
+
+      card.onclick = () => {
+        if (lock || card.innerText) return;
+
+        card.innerText = emoji;
+
+        if (!first) {
+          first = card;
+        } else {
+          second = card;
+          moves++;
+          lock = true;
+
+          if (first.dataset.value === second.dataset.value) {
+            first = second = null;
+            lock = false;
+          } else {
+            setTimeout(() => {
+              first.innerText = "";
+              second.innerText = "";
+              first = second = null;
+              lock = false;
+            }, 800);
+          }
+        }
+      };
+
+      board.appendChild(card);
+    });
+
+    // Restart function
+    function restartGame() {
+      location.reload();
+    }
+
+    // Simple local leaderboard
+    let scores = [];
+
+    function submitScore() {
+      const name = document.getElementById("playerName").value;
+      if (!name) return alert("Enter your name!");
+
+      scores.push({ name, moves });
+      scores.sort((a, b) => a.moves - b.moves);
+
+      const list = document.getElementById("leaderboard");
+      list.innerHTML = "";
+
+      scores.slice(0, 10).forEach(s => {
+        list.innerHTML += `<li>${s.name} - ${s.moves} moves</li>`;
+      });
+    }
+  </script>
+
+</body>
+</html>
