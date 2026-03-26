@@ -52,121 +52,182 @@
   <ul id="leaderboard"></ul>
 
   <!-- 🔥 Firebase Script -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-
-// Firebase config
-const firebaseConfig = {
-  apiKey: "AIzaSyBqGcB9AOcnY7B2iR-U0ZvH_JM0xTtniOc",
-  authDomain: "backend-48141.firebaseapp.com",
-  projectId: "backend-48141",
-  storageBucket: "backend-48141.firebasestorage.app",
-  messagingSenderId: "245004270827",
-  appId: "1:245004270827:web:34fdb4776c2cdc5c2dd2ae"
-};
-
-// Init
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// GAME LOGIC
-const emojis = ["🍎","🍌","🍇","🍒","🍎","🍌","🍇","🍒"];
-let shuffled = emojis.sort(() => 0.5 - Math.random());
-
-let first = null;
-let second = null;
-let lock = false;
-let moves = 0;
-
-const board = document.getElementById("game-board");
-
-shuffled.forEach((emoji) => {
-  const card = document.createElement("div");
-  card.classList.add("card");
-  card.dataset.value = emoji;
-
-  card.onclick = () => {
-    if (lock || card.innerText) return;
-
-    card.innerText = emoji;
-
-    if (!first) {
-      first = card;
-    } else {
-      second = card;
-      moves++;
-      lock = true;
-
-      if (first.dataset.value === second.dataset.value) {
-        first = second = null;
-        lock = false;
-      } else {
-        setTimeout(() => {
-          first.innerText = "";
-          second.innerText = "";
-          first = second = null;
-          lock = false;
-        }, 800);
-      }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Memory Game with Firebase Realtime Database</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
     }
-  };
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(4, 80px);
+      gap: 10px;
+      justify-content: center;
+      margin: 20px;
+    }
+    .card {
+      width: 80px;
+      height: 80px;
+      background: #333;
+      color: white;
+      font-size: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 10px;
+      user-select: none;
+    }
+    input, button {
+      padding: 10px;
+      margin: 10px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
 
-  board.appendChild(card);
-});
+  <h1>🧠 Memory Game</h1>
+  <div id="game-board"></div>
 
-// RESTART
-window.restartGame = function() {
-  location.reload();
-};
+  <input id="playerName" placeholder="Your name" />
+  <button onclick="submitScore()">Submit Score</button>
+  <button onclick="restartGame()">🔁 Restart</button>
 
-// 🔥 SUBMIT SCORE (FIXED)
-window.submitScore = async function () {
-  const name = document.getElementById("playerName").value;
+  <h2>Leaderboard</h2>
+  <ul id="leaderboard"></ul>
 
-  if (!name) {
-    alert("Enter your name!");
-    return;
-  }
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+    import { getDatabase, ref, set, push, get } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js";
 
-  try {
-    await addDoc(collection(db, "leaderboard"), {
-      name: name,
-      moves: moves
-    });
+    const firebaseConfig = {
+      apiKey: "AIzaSyBqGcB9AOcnY7B2iR-U0ZvH_JM0xTtniOc",
+      authDomain: "backend-48141.firebaseapp.com",
+      databaseURL: "https://backend-48141-default-rtdb.firebaseio.com",
+      projectId: "backend-48141",
+      storageBucket: "backend-48141.firebasestorage.app",
+      messagingSenderId: "245004270827",
+      appId: "1:245004270827:web:34fdb4776c2cdc5c2dd2ae"
+    };
 
-    alert("✅ Score submitted!");
+    // Initialize Firebase and Realtime Database
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // Game variables
+    const emojis = ["🍎","🍌","🍇","🍒","🍎","🍌","🍇","🍒"];
+    let shuffled = [...emojis].sort(() => 0.5 - Math.random());
+
+    let first = null;
+    let second = null;
+    let lock = false;
+    window.moves = 0;  // global moves count
+
+    const board = document.getElementById("game-board");
+
+    function createBoard() {
+      board.innerHTML = "";
+      shuffled.forEach((emoji) => {
+        const card = document.createElement("div");
+        card.classList.add("card");
+        card.dataset.value = emoji;
+
+        card.onclick = () => {
+          if (lock || card.innerText) return;
+
+          card.innerText = emoji;
+
+          if (!first) {
+            first = card;
+          } else {
+            second = card;
+            window.moves++;
+            lock = true;
+
+            if (first.dataset.value === second.dataset.value) {
+              first = second = null;
+              lock = false;
+            } else {
+              setTimeout(() => {
+                first.innerText = "";
+                second.innerText = "";
+                first = second = null;
+                lock = false;
+              }, 800);
+            }
+          }
+        };
+
+        board.appendChild(card);
+      });
+    }
+
+    createBoard();
+
+    // Restart game function
+    window.restartGame = function() {
+      window.moves = 0;
+      shuffled = [...emojis].sort(() => 0.5 - Math.random());
+      createBoard();
+      document.getElementById("playerName").value = "";
+      loadLeaderboard();
+    };
+
+    // Submit score to Firebase Realtime Database
+    window.submitScore = async function() {
+      const name = document.getElementById("playerName").value.trim();
+      if (!name) {
+        alert("Please enter your name!");
+        return;
+      }
+      if (window.moves === 0) {
+        alert("Play the game first!");
+        return;
+      }
+
+      try {
+        const scoresRef = ref(db, "leaderboard");
+        const newScoreRef = push(scoresRef);
+        await set(newScoreRef, { name, moves: window.moves });
+        alert("✅ Score submitted!");
+        loadLeaderboard();
+      } catch (err) {
+        alert("Error submitting score: " + err.message);
+      }
+    };
+
+    // Load leaderboard from Firebase Realtime Database
+    async function loadLeaderboard() {
+      const scoresRef = ref(db, "leaderboard");
+      const snapshot = await get(scoresRef);
+      const scores = [];
+
+      if (snapshot.exists()) {
+        snapshot.forEach(childSnapshot => {
+          scores.push(childSnapshot.val());
+        });
+      }
+
+      scores.sort((a, b) => a.moves - b.moves);
+
+      const list = document.getElementById("leaderboard");
+      list.innerHTML = "";
+      scores.slice(0, 10).forEach(s => {
+        list.innerHTML += `<li>${s.name} - ${s.moves} moves</li>`;
+      });
+    }
+
+    // Load leaderboard on page load
     loadLeaderboard();
+  </script>
 
-  } catch (err) {
-    console.error(err);
-    alert("❌ Error: " + err.message);
-  }
-};
-
-// 📊 LOAD LEADERBOARD
-async function loadLeaderboard() {
-  const snapshot = await getDocs(collection(db, "leaderboard"));
-
-  let scores = [];
-
-  snapshot.forEach(doc => {
-    scores.push(doc.data());
-  });
-
-  scores.sort((a, b) => a.moves - b.moves);
-
-  const list = document.getElementById("leaderboard");
-  list.innerHTML = "";
-
-  scores.slice(0, 10).forEach(s => {
-    list.innerHTML += `<li>${s.name} - ${s.moves} moves</li>`;
-  });
-}
-
-// Load on start
-loadLeaderboard();
-</script>
+</body>
+</html>
 
 </body>
 </html>
