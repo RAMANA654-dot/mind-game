@@ -78,94 +78,119 @@
     window.onload = () => {
       loadLeaderboard();
     };
-  </script>
+ <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-  <!-- 🎮 Game Script -->
-  <script>
-    const emojis = ["🍎","🍌","🍇","🍒","🍎","🍌","🍇","🍒"];
-    let shuffled = emojis.sort(() => 0.5 - Math.random());
+  const firebaseConfig = {
+    apiKey: "AIzaSyBqGcB9AOcnY7B2iR-U0ZvH_JM0xTtniOc",
+    authDomain: "backend-48141.firebaseapp.com",
+    projectId: "backend-48141",
+    storageBucket: "backend-48141.firebasestorage.app",
+    messagingSenderId: "245004270827",
+    appId: "1:245004270827:web:34fdb4776c2cdc5c2dd2ae"
+  };
 
-    let first = null;
-    let second = null;
-    let lock = false;
-    let moves = 0;
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-    const board = document.getElementById("game-board");
+  // 🎮 GAME CODE INSIDE MODULE
 
-    shuffled.forEach((emoji) => {
-      const card = document.createElement("div");
-      card.classList.add("card");
-      card.dataset.value = emoji;
+  const emojis = ["🍎","🍌","🍇","🍒","🍎","🍌","🍇","🍒"];
+  let shuffled = emojis.sort(() => 0.5 - Math.random());
 
-      card.onclick = () => {
-        if (lock || card.innerText) return;
+  let first = null;
+  let second = null;
+  let lock = false;
+  let moves = 0;
 
-        card.innerText = emoji;
+  const board = document.getElementById("game-board");
 
-        if (!first) {
-          first = card;
+  shuffled.forEach((emoji) => {
+    const card = document.createElement("div");
+    card.classList.add("card");
+    card.dataset.value = emoji;
+
+    card.onclick = () => {
+      if (lock || card.innerText) return;
+
+      card.innerText = emoji;
+
+      if (!first) {
+        first = card;
+      } else {
+        second = card;
+        moves++;
+        lock = true;
+
+        if (first.dataset.value === second.dataset.value) {
+          first = second = null;
+          lock = false;
         } else {
-          second = card;
-          moves++;
-          lock = true;
-
-          if (first.dataset.value === second.dataset.value) {
+          setTimeout(() => {
+            first.innerText = "";
+            second.innerText = "";
             first = second = null;
             lock = false;
-          } else {
-            setTimeout(() => {
-              first.innerText = "";
-              second.innerText = "";
-              first = second = null;
-              lock = false;
-            }, 800);
-          }
+          }, 800);
         }
-      };
+      }
+    };
 
-      board.appendChild(card);
-    });
+    board.appendChild(card);
+  });
 
-    function restartGame() {
-      location.reload();
-    }
+  function restartGame() {
+    location.reload();
+  }
 
-    // 🔥 SAVE SCORE TO FIREBASE
-    async function submitScore() {
-      const name = document.getElementById("playerName").value;
+  window.restartGame = restartGame;
 
-      if (!name) return alert("Enter your name!");
+  // 🔥 FIXED SUBMIT FUNCTION
+  async function submitScore() {
+    const name = document.getElementById("playerName").value;
 
+    if (!name) return alert("Enter your name!");
+
+    try {
       await addDoc(collection(db, "leaderboard"), {
         name: name,
         moves: moves,
-        time: Date.now()
+        createdAt: new Date()
       });
 
-      alert("Score saved!");
+      alert("✅ Score submitted!");
       loadLeaderboard();
+
+    } catch (error) {
+      console.error(error);
+      alert("❌ Error: " + error.message);
     }
+  }
 
-    // 📊 LOAD LEADERBOARD FROM FIREBASE
-    async function loadLeaderboard() {
-      const snapshot = await getDocs(collection(db, "leaderboard"));
+  window.submitScore = submitScore;
 
-      let scores = [];
+  async function loadLeaderboard() {
+    const snapshot = await getDocs(collection(db, "leaderboard"));
 
-      snapshot.forEach(doc => {
-        scores.push(doc.data());
-      });
+    let scores = [];
 
-      scores.sort((a, b) => a.moves - b.moves);
+    snapshot.forEach(doc => {
+      scores.push(doc.data());
+    });
 
-      const list = document.getElementById("leaderboard");
-      list.innerHTML = "";
+    scores.sort((a, b) => a.moves - b.moves);
 
-      scores.slice(0, 10).forEach(s => {
-        list.innerHTML += `<li>${s.name} - ${s.moves} moves</li>`;
-      });
-    }
-  </script>
+    const list = document.getElementById("leaderboard");
+    list.innerHTML = "";
+
+    scores.slice(0, 10).forEach(s => {
+      list.innerHTML += `<li>${s.name} - ${s.moves} moves</li>`;
+    });
+  }
+
+  loadLeaderboard();
+</script>
 
 </body>
 </html>
